@@ -17,6 +17,7 @@ import os
 import sys
 import time
 import traceback
+import numpy as np
 
 STATION = '45004'
 OUTPUT_DIR = 'images'
