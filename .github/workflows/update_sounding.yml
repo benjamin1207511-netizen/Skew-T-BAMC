@@ -1,0 +1,51 @@
+name: 🔄 自动更新探空图
+
+on:
+  schedule:
+    # 每天 00:10 和 12:10 UTC 运行
+    - cron: '10 0,12 * * *'
+  # 支持手动触发
+  workflow_dispatch:
+
+jobs:
+  update-sounding:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 检出代码
+        uses: actions/checkout@v4
+        
+      - name: 🐍 设置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: 📦 安装依赖
+        run: |
+          pip install -r requirements.txt
+      
+      - name: 🌐 获取数据并生成探空图
+        run: |
+          python generate_sounding.py
+      
+      - name: 📊 检查图片
+        run: |
+          if [ -f "images/sounding_45004.png" ]; then
+            echo "✅ 图片生成成功"
+            ls -lh images/
+          else
+            echo "❌ 图片生成失败"
+            exit 1
+          fi
+      
+      - name: 💾 提交更新
+        env:
+            GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}   # 使用刚添加的 token
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add images/sounding_45004.png
+          # 如果有更改则提交
+          git diff --staged --quiet || git commit -m "🔄 自动更新探空图 [skip ci]"
+          git push
