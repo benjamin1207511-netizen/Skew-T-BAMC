@@ -22,6 +22,7 @@ STATION = '45004'
 OUTPUT_DIR = 'images'
 OUTPUT_FILE = f'{OUTPUT_DIR}/sounding_{STATION}.png'
 STATION_NAME = '香港'
+REGION = 'easia'  # 🔥 关键：东亚区域
 
 
 def get_sounding_with_retry(station, query_time, max_retries=3):
