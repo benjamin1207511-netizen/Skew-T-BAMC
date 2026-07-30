@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>站点45004 探空图</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            padding: 40px;
+            max-width: 950px;
+            width: 100%;
+            transition: all 0.3s ease;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #0a2540;
+            font-size: 32px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+        .header .badge {
+            display: inline-block;
+            background: #e8f0fe;
+            color: #1967d2;
+            padding: 4px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+        .header .subtitle {
+            color: #5f6368;
+            font-size: 16px;
+            margin-top: 4px;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 25px;
+        }
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: #202124;
+        }
+        .info-item .label {
+            color: #5f6368;
+            font-weight: 500;
+        }
+        .info-item .value {
+            font-weight: 600;
+            color: #0a2540;
+        }
+        .image-wrapper {
+            background: #fafbfc;
+            border-radius: 12px;
+            border: 1px solid #e8eaed;
+            overflow: hidden;
+            padding: 8px;
+        }
+        .image-wrapper img {
+            width: 100%;
+            height: auto;
+            display: block;
+            border-radius: 8px;
+        }
+        .image-wrapper .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: #5f6368;
+            font-size: 16px;
+        }
+        .footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid #e8eaed;
+        }
+        .footer .status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #5f6368;
+        }
+        .footer .status .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .footer .status .dot.green {
+            background: #34a853;
+        }
+        .footer .status .dot.yellow {
+            background: #fbbc04;
+        }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+        .btn-primary {
+            background: #1a73e8;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #1557b0;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(26, 115, 232, 0.3);
+        }
+        .btn-secondary {
+            background: #e8eaed;
+            color: #3c4043;
+        }
+        .btn-secondary:hover {
+            background: #dadce0;
+        }
+        .update-note {
+            text-align: center;
+            font-size: 12px;
+            color: #9aa0a6;
+            margin-top: 16px;
+        }
+        .update-note a {
+            color: #1a73e8;
+            text-decoration: none;
+        }
+        .update-note a:hover {
+            text-decoration: underline;
+        }
+        /* 响应式 */
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+            .header h1 {
+                font-size: 24px;
+            }
+            .info-grid {
+                grid-template-columns: 1fr;
+                gap: 6px;
+            }
+            .footer {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .btn-group {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- 头部 -->
+    <div class="header">
+        <h1>📍 站点 45004 探空图</h1>
+        <div class="badge">香港国际机场</div>
+        <div class="subtitle">T-logP 大气探空分析 · 每日 00Z / 12Z 自动更新</div>
+    </div>
+
+    <!-- 信息栏 -->
+    <div class="info-grid">
+        <div class="info-item">
+            <span class="label">📍 站点 ID：</span>
+            <span class="value">45004</span>
+        </div>
+        <div class="info-item">
+            <span class="label">🌍 位置：</span>
+            <span class="value">香港 (22.3°N, 113.9°E)</span>
+        </div>
+        <div class="info-item">
+            <span class="label">🕐 数据时间：</span>
+            <span class="value" id="update-time">加载中...</span>
+        </div>
+        <div class="info-item">
+            <span class="label">🔄 更新状态：</span>
+            <span class="value" id="update-status">
+                <span class="dot green" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#34a853;"></span>
+                正常
+            </span>
+        </div>
+    </div>
+
+    <!-- 图片 -->
+    <div class="image-wrapper">
+        <img 
+            id="sounding-image"
+            src="images/sounding_45004.png" 
+            alt="站点45004探空图"
+            onerror="this.style.display='none'; document.getElementById('error-msg').style.display='block';"
+            onload="document.getElementById('loading-msg').style.display='none';"
+        >
+        <div id="loading-msg" class="loading">⏳ 加载图片中...</div>
+        <div id="error-msg" class="loading" style="display:none;color:#d93025;">
+            ❌ 图片加载失败，请稍后刷新重试
+        </div>
+    </div>
+
+    <!-- 底部 -->
+    <div class="footer">
+        <div class="status">
+            <span class="dot green" id="status-dot"></span>
+            <span id="status-text">数据最新</span>
+        </div>
+        <div class="btn-group">
+            <a href="images/sounding_45004.png" download class="btn btn-primary">
+                ⬇️ 下载高清图
+            </a>
+            <a href="https://github.com/your-username/sounding_45004" target="_blank" class="btn btn-secondary">
+                📂 查看源码
+            </a>
+        </div>
+    </div>
+
+    <div class="update-note">
+        ⏱️ 图片由 GitHub Actions 自动更新 · 
+        数据来源：<a href="https://weather.uwyo.edu/upperair/sounding.html" target="_blank">怀俄明大学探空数据库</a>
+    </div>
+</div>
+
+<script>
+    // 获取图片更新时间和状态
+    (function() {
+        const imgUrl = 'images/sounding_45004.png';
+        const timeEl = document.getElementById('update-time');
+        const statusText = document.getElementById('status-text');
+        const statusDot = document.getElementById('status-dot');
+
+        // 尝试获取图片的 Last-Modified 信息
+        fetch(imgUrl, { method: 'HEAD', cache: 'no-cache' })
+            .then(response => {
+                const lastModified = response.headers.get('Last-Modified');
+                if (lastModified) {
+                    const date = new Date(lastModified);
+                    const now = new Date();
+                    const diffHours = (now - date) / (1000 * 60 * 60);
+                    
+                    // 格式化时间
+                    const timeStr = date.toISOString().replace('T', ' ').slice(0, 16) + ' UTC';
+                    timeEl.textContent = timeStr;
+                    
+                    // 判断数据是否过新（超过24小时未更新可能有问题）
+                    if (diffHours > 30) {
+                        statusText.textContent = '⚠️ 可能已过期';
+                        statusDot.className = 'dot yellow';
+                    } else {
+                        statusText.textContent = '✅ 数据最新';
+                        statusDot.className = 'dot green';
+                    }
+                } else {
+                    timeEl.textContent = '未知';
+                }
+            })
+            .catch(() => {
+                timeEl.textContent = '无法获取';
+                statusText.textContent = '⚠️ 连接异常';
+                statusDot.className = 'dot yellow';
+            });
+
+        // 图片加载完成隐藏 loading
+        const img = document.getElementById('sounding-image');
+        if (img.complete) {
+            document.getElementById('loading-msg').style.display = 'none';
+        }
+    })();
+</script>
+
+</body>
+</html>

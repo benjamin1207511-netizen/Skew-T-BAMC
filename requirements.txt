@@ -1,0 +1,5 @@
+matplotlib>=3.5.0
+numpy>=1.21.0
+metpy>=1.3.0
+siphon>=0.9.0
+pandas>=1.3.0
