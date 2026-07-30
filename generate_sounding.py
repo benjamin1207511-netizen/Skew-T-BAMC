@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-站点45004探空图生成脚本 - 多区域多日期智能尝试
+站点45004探空图生成脚本 - 使用 IGRA2 数据源
 """
 
 import matplotlib
@@ -10,70 +10,61 @@ import matplotlib.pyplot as plt
 import metpy.calc as mpcalc
 from metpy.plots import SkewT
 from metpy.units import units
-from siphon.simplewebservice.wyoming import WyomingUpperAir
+from siphon.simplewebservice.igra2 import IGRAUpperAir  # 🔥 改用 IGRA2
 from datetime import datetime, timedelta
 import os
 import sys
 import time
 import traceback
 import numpy as np
+import pandas as pd
 
 STATION = '45004'
+# 🔥 IGRA2 站点 ID 格式：C + 国家代码(000) + 站点号
+# 香港 45004 -> C000045004
+IGRA_STATION = 'C000045004'
 OUTPUT_DIR = 'images'
 OUTPUT_FILE = f'{OUTPUT_DIR}/sounding_{STATION}.png'
 STATION_NAME = '香港'
 
-# 候选区域列表（按优先级）
-REGIONS = ['easia', 'asia', 'naconf']
 
-
-def try_fetch_data(station, query_time, region):
-    """尝试获取一次数据"""
-    print(f"  尝试区域: {region}, 时间: {query_time.strftime('%Y-%m-%d %HZ')}")
+def try_fetch_igra2(station, year, month, day, hour):
+    """尝试从 IGRA2 获取数据"""
+    query_time = datetime(year, month, day, hour)
+    print(f"  尝试 IGRA2: {query_time.strftime('%Y-%m-%d %HZ')}")
     try:
-        df = WyomingUpperAir.request_data(query_time, station, region=region)
+        # IGRA2 返回 (DataFrame, Header)
+        df, header = IGRAUpperAir.request_data(query_time, station)
         if df is not None and not df.empty:
             print(f"  ✅ 成功！共 {len(df)} 层")
-            return df
+            return df, query_time
         else:
             print(f"  ⚠️ 返回空数据")
-            return None
+            return None, None
     except Exception as e:
-        print(f"  ❌ 失败: {str(e)[:60]}")
-        return None
+        print(f"  ❌ 失败: {str(e)[:80]}")
+        return None, None
 
 
 def get_latest_sounding(station):
     """智能获取最新数据"""
     now = datetime.utcnow()
-    # 尝试两个施放时间：00Z 和 12Z
-    candidate_times = []
-    for hour in [0, 12]:
-        t = now.replace(hour=hour, minute=0, second=0, microsecond=0)
-        # 如果当前时间早于该施放时间，则取前一天
-        if now < t:
-            t = t - timedelta(days=1)
-        candidate_times.append(t)
-    # 再加上前一天的 00Z 和 12Z 作为备选
-    for t in candidate_times[:]:
-        candidate_times.append(t - timedelta(days=1))
-        candidate_times.append(t - timedelta(days=2))
-    # 去重
-    candidate_times = list(dict.fromkeys(candidate_times))
-
     print(f"📍 站点: {station} ({STATION_NAME})")
-    print(f"🔍 将尝试 {len(candidate_times)} 个时间 x {len(REGIONS)} 个区域")
+    print(f"🔍 使用 IGRA2 数据源")
 
-    for region in REGIONS:
-        for dt in candidate_times:
-            df = try_fetch_data(station, dt, region)
+    # 尝试最近 7 天的 00Z 和 12Z
+    for days_ago in range(7):
+        for hour in [0, 12]:
+            dt = now - timedelta(days=days_ago)
+            dt = dt.replace(hour=hour, minute=0, second=0, microsecond=0)
+            df, query_time = try_fetch_igra2(station, dt.year, dt.month, dt.day, dt.hour)
             if df is not None and not df.empty:
-                print(f"🎯 最终使用: 区域={region}, 时间={dt.strftime('%Y-%m-%d %HZ')}")
-                return df, dt
-        print(f"  区域 {region} 所有时间均失败，切换到下一个区域...")
+                print(f"🎯 最终使用: {query_time.strftime('%Y-%m-%d %HZ')}")
+                return df, query_time
+        # 每尝试一天打印一个点，表示进度
+        print(f"  第 {days_ago + 1} 天无数据，继续往前...")
 
-    # 所有尝试都失败
-    print("❌ 所有区域和时间尝试均失败")
+    print("❌ 所有尝试均失败")
     return None, None
 
 
@@ -94,33 +85,81 @@ def generate_plot(df, station, output_path, query_time):
         print(f"✅ 占位图已保存至: {output_path}")
         return
 
-    # 正常绘制（原有代码，略作优化）
+    # 🔥 IGRA2 列名映射
+    # 常见列名: pressure, temperature, dewpoint, u_wind, v_wind
+    # 如果列名不同，需要适配
     try:
-        p = df['pressure'].values * units.hPa
-        T = df['temperature'].values * units.degC
-        Td = df['dewpoint'].values * units.degC
-        u = df['u_wind'].values * units.knot
-        v = df['v_wind'].values * units.knot
-    except KeyError as e:
-        print(f"❌ 数据列缺失: {e}")
+        # 尝试标准列名
+        if 'pressure' in df.columns:
+            p = df['pressure'].values * units.hPa
+        elif 'PRES' in df.columns:
+            p = df['PRES'].values * units.hPa
+        else:
+            raise KeyError("找不到气压列")
+
+        if 'temperature' in df.columns:
+            T = df['temperature'].values * units.degC
+        elif 'TEMP' in df.columns:
+            T = df['TEMP'].values * units.degC
+        else:
+            raise KeyError("找不到温度列")
+
+        if 'dewpoint' in df.columns:
+            Td = df['dewpoint'].values * units.degC
+        elif 'DEWP' in df.columns:
+            Td = df['DEWP'].values * units.degC
+        else:
+            # 如果没有露点，尝试从比湿计算
+            print("⚠️ 无露点列，尝试从相对湿度计算...")
+            if 'RH' in df.columns:
+                rh = df['RH'].values * units.percent
+                Td = mpcalc.dewpoint_from_relative_humidity(T, rh)
+            else:
+                Td = T - 5 * units.degC  # 粗略估计
+                print("⚠️ 使用粗略估计的露点温度")
+
+        if 'u_wind' in df.columns:
+            u = df['u_wind'].values * units.knot
+        elif 'UWND' in df.columns:
+            u = df['UWND'].values * units.knot
+        else:
+            u = np.zeros(len(p)) * units.knot
+
+        if 'v_wind' in df.columns:
+            v = df['v_wind'].values * units.knot
+        elif 'VWND' in df.columns:
+            v = df['VWND'].values * units.knot
+        else:
+            v = np.zeros(len(p)) * units.knot
+
+    except Exception as e:
+        print(f"❌ 数据提取失败: {e}")
+        print(f"可用列: {df.columns.tolist()}")
         raise
 
+    # 过滤无效数据
     valid_mask = (p.magnitude > 0) & (T.magnitude > -100) & (T.magnitude < 60) & (p.magnitude < 1100)
     if not all(valid_mask):
-        p = p[valid_mask]; T = T[valid_mask]; Td = Td[valid_mask]; u = u[valid_mask]; v = v[valid_mask]
+        p = p[valid_mask]; T = T[valid_mask]; Td = Td[valid_mask]
+        u = u[valid_mask]; v = v[valid_mask]
 
     if len(p) < 5:
         raise ValueError(f"有效数据点太少 ({len(p)})")
 
     # 去重
-    df_filtered = df[valid_mask]
-    df_unique = df_filtered.drop_duplicates(subset=['pressure'])
-    if len(df_unique) < len(df_filtered):
-        p = df_unique['pressure'].values * units.hPa
-        T = df_unique['temperature'].values * units.degC
-        Td = df_unique['dewpoint'].values * units.degC
-        u = df_unique['u_wind'].values * units.knot
-        v = df_unique['v_wind'].values * units.knot
+    temp_df = pd.DataFrame({
+        'pressure': p.magnitude,
+        'temperature': T.magnitude,
+        'dewpoint': Td.magnitude,
+        'u_wind': u.magnitude,
+        'v_wind': v.magnitude
+    })
+    temp_df = temp_df.drop_duplicates(subset=['pressure'])
+    p = temp_df['pressure'].values * units.hPa
+    T = temp_df['temperature'].values * units.degC
+    Td = temp_df['dewpoint'].values * units.degC
+    u = temp_df['u_wind'].values * units.knot
+    v = temp_df['v_wind'].values * units.knot
 
     # 物理量
     try:
@@ -179,6 +218,8 @@ def generate_plot(df, station, output_path, query_time):
 
     title = f'站点 {station} ({STATION_NAME}) 探空图\n'
     title += f'时间: {query_time.strftime("%Y-%m-%d %H:00 UTC")}\n'
+    if query_time:
+        title += f'数据源: IGRA2\n'
     title += f'CAPE: {cape_str} J/kg  |  K指数: {k_val:.1f} °C  |  LCL: {lcl_str} hPa'
     plt.title(title, fontsize=11, pad=15)
     plt.legend(loc='upper right', fontsize=9)
@@ -195,7 +236,8 @@ def main():
     print(f"🕐 运行时间: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}")
     print("=" * 60)
 
-    df, query_time = get_latest_sounding(STATION)
+    # 使用 IGRA2 站点 ID
+    df, query_time = get_latest_sounding(IGRA_STATION)
     generate_plot(df, STATION, OUTPUT_FILE, query_time)
     print("=" * 60)
     print("🎉 完成！")
