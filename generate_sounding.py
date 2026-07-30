@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """
-站点45004探空图生成脚本 - 修复单位比较错误
+站点45004探空图生成脚本 - 修复所有 Quantity 比较问题
 """
 
 import matplotlib
-
 matplotlib.use('Agg')
 
 import matplotlib.pyplot as plt
@@ -98,7 +97,7 @@ def generate_plot(df, station, output_path, query_time):
         print(f"可用列: {df.columns.tolist()}")
         raise
 
-    # 🔥 修复点：使用 .magnitude 进行比较，避免单位冲突
+    # 过滤无效数据
     valid_mask = (p.magnitude > 0) & (T.magnitude > -100) & (T.magnitude < 60) & (p.magnitude < 1100)
 
     if not all(valid_mask):
@@ -112,6 +111,17 @@ def generate_plot(df, station, output_path, query_time):
     if len(p) < 5:
         raise ValueError(f"有效数据点太少 ({len(p)} 层)，无法生成探空图")
 
+    # 去除重复气压层
+    df_filtered = df[valid_mask]
+    df_unique = df_filtered.drop_duplicates(subset=['pressure'])
+    if len(df_unique) < len(df_filtered):
+        print(f"⚠️ 去除了 {len(df_filtered) - len(df_unique)} 个重复气压层")
+        p = df_unique['pressure'].values * units.hPa
+        T = df_unique['temperature'].values * units.degC
+        Td = df_unique['dewpoint'].values * units.degC
+        u = df_unique['u_wind'].values * units.knot
+        v = df_unique['v_wind'].values * units.knot
+
     # 计算物理量
     try:
         parcel_profile = mpcalc.parcel_profile(p, T[0], Td[0])
@@ -122,12 +132,14 @@ def generate_plot(df, station, output_path, query_time):
         print(f"⚠️ 物理量计算部分失败: {e}")
         try:
             parcel_profile = mpcalc.parcel_profile(p, T[0], Td[0])
-            cape = cin = 0
-            k_index = 0
+            cape = cin = 0 * units('J/kg')
+            k_index = 0 * units('degC')
             lcl_p, lcl_t = p[0], T[0]
         except:
             parcel_profile = p * 0 + 273
-            cape = cin = k_index = lcl_p = lcl_t = 0
+            cape = cin = 0 * units('J/kg')
+            k_index = 0 * units('degC')
+            lcl_p, lcl_t = None, None
 
     # 创建图形
     fig = plt.figure(figsize=(10, 12), dpi=120, facecolor='white')
@@ -144,16 +156,22 @@ def generate_plot(df, station, output_path, query_time):
     skew.plot(p, parcel_profile, 'k', linewidth=2, linestyle='--',
               label='状态曲线 (气块)')
 
-    # LCL
-    # 检查 lcl_p 和 lcl_t 是否为有效数值（不为 NaN 且数值合理）
-    if (lcl_p is not None and lcl_t is not None and
-            hasattr(lcl_p, 'magnitude') and hasattr(lcl_t, 'magnitude') and
-            not np.isnan(lcl_p.magnitude) and not np.isnan(lcl_t.magnitude) and
-            lcl_p.magnitude > 0 and lcl_t.magnitude > -100 and lcl_p.magnitude < 1100):
+    # 安全地检查 LCL
+    lcl_valid = False
+    if lcl_p is not None and lcl_t is not None:
+        try:
+            if (hasattr(lcl_p, 'magnitude') and hasattr(lcl_t, 'magnitude') and
+                not np.isnan(lcl_p.magnitude) and not np.isnan(lcl_t.magnitude) and
+                lcl_p.magnitude > 0 and lcl_t.magnitude > -100 and lcl_p.magnitude < 1100):
+                lcl_valid = True
+        except Exception:
+            lcl_valid = False
+
+    if lcl_valid:
         skew.plot(lcl_p, lcl_t, 'ko', markersize=12, label='LCL')
         skew.plot(lcl_p, lcl_t, 'yo', markersize=6)
 
-    # 风羽（间隔）
+    # 风羽
     step = max(1, len(p) // 15)
     if step > 0:
         skew.plot_barbs(p[::step], u[::step], v[::step], xloc=1.08, length=5)
@@ -165,11 +183,37 @@ def generate_plot(df, station, output_path, query_time):
     skew.ax.set_xlabel('温度 (°C)', fontsize=13, fontweight='bold')
     skew.ax.grid(True, linestyle='--', alpha=0.3)
 
-    # 标题
-    cape_str = f'{cape:.1f}' if cape < 9999 else '>9999'
+    # ========== 🔥 修复标题中的 Quantity 比较 ==========
+    # 提取 cape 数值
+    try:
+        if cape is not None and hasattr(cape, 'magnitude'):
+            cape_val = cape.magnitude
+        else:
+            cape_val = 0
+        if np.isnan(cape_val):
+            cape_val = 0
+    except:
+        cape_val = 0
+    cape_str = f'{cape_val:.1f}' if cape_val < 9999 else '>9999'
+
+    # 提取 k_index 数值
+    try:
+        if k_index is not None and hasattr(k_index, 'magnitude'):
+            k_index_val = k_index.magnitude
+        else:
+            k_index_val = 0
+        if np.isnan(k_index_val):
+            k_index_val = 0
+    except:
+        k_index_val = 0
+
+    # LCL 字符串
+    lcl_str = f'{lcl_p.magnitude:.0f}' if lcl_valid else 'N/A'
+
+    # 构建标题
     title = f'站点 {station} ({STATION_NAME}) 探空图\n'
     title += f'时间: {query_time.strftime("%Y-%m-%d %H:00 UTC")}\n'
-    title += f'CAPE: {cape_str} J/kg  |  K指数: {k_index:.1f} °C  |  LCL: {lcl_p:.0f} hPa'
+    title += f'CAPE: {cape_str} J/kg  |  K指数: {k_index_val:.1f} °C  |  LCL: {lcl_str} hPa'
     plt.title(title, fontsize=11, pad=15)
     plt.legend(loc='upper right', fontsize=9)
 
