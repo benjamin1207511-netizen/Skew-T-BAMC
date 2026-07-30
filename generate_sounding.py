@@ -144,7 +144,11 @@ def generate_plot(df, station, output_path, query_time):
               label='状态曲线 (气块)')
 
     # LCL
-    if lcl_p and lcl_t and lcl_p.magnitude > 0 and lcl_t.magnitude > -100 and lcl_p.magnitude < 1100:
+    # 检查 lcl_p 和 lcl_t 是否为有效数值（不为 NaN 且数值合理）
+    if (lcl_p is not None and lcl_t is not None and
+            hasattr(lcl_p, 'magnitude') and hasattr(lcl_t, 'magnitude') and
+            not np.isnan(lcl_p.magnitude) and not np.isnan(lcl_t.magnitude) and
+            lcl_p.magnitude > 0 and lcl_t.magnitude > -100 and lcl_p.magnitude < 1100):
         skew.plot(lcl_p, lcl_t, 'ko', markersize=12, label='LCL')
         skew.plot(lcl_p, lcl_t, 'yo', markersize=6)
 
